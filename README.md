@@ -78,14 +78,24 @@ horários) são guardados a sério no MySQL do XAMPP, através da API em `api_lo
 1. Ligar o MySQL no XAMPP.
 2. Só da primeira vez: importar `api_login/schema.sql` no phpMyAdmin (cria a base de
    dados `whoplay_login` e as tabelas).
-3. Arrancar a API (fica em `http://localhost:3000`):
+3. Só da primeira vez: instalar as dependências da API (`node_modules` não vai para o Git):
+
+```bash
+cd api_login
+npm install
+```
+
+4. Arrancar a API (fica em `http://localhost:3000`):
 
 ```bash
 cd api_login
 npm start
 ```
 
-4. Correr a app normalmente (`flutter run -d chrome`).
+Cada pessoa tem a sua própria base de dados no seu XAMPP: as contas criadas num PC não
+existem nos outros. Na primeira vez, cria uma conta em "Criar conta".
+
+5. Correr a app: `flutter pub get` e depois `flutter run -d chrome`.
 
 ## Funcionalidades simuladas
 
