@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -7,7 +8,7 @@ import 'package:http/http.dart' as http;
 import '../data/dados_exemplo.dart';
 import '../data/models.dart';
 
-/// Erro mostrado ao utilizador (ex.: dados em falta no formulário).
+/// Erro apresentado ao utilizador.
 class ApiException implements Exception {
   const ApiException(this.message, [this.status]);
 
@@ -18,214 +19,412 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-/// API da app.
-///
-/// - Login, registo, desportos do onboarding e perfil: vão à API em
-///   `api_login/` (Node + MySQL do XAMPP, base de dados `whoplay_login`).
-/// - Jogadores, jogos, convites e avisos: continuam em memória, a partir de
-///   lib/data/dados_exemplo.dart.
+/// Serviço de comunicação com a API WhoPlay.
 abstract final class Api {
-  /// Para um telemóvel real: flutter run --dart-define=API_URL=http://192.168.1.10:3000
+  /// Para um telemóvel real:
+  /// flutter run --dart-define=API_URL=http://192.168.1.10:3000
   static const _urlDefinido = String.fromEnvironment('API_URL');
 
   static String get baseUrl {
     if (_urlDefinido.isNotEmpty) return _urlDefinido;
-    // O emulador Android vê o PC no endereço 10.0.2.2 (localhost seria o próprio emulador).
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:3000';
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:3000';
+    }
+
     return 'http://localhost:3000';
   }
 
-  /// O id de quem entrou (fica guardado depois do login ou do registo).
   static int? _utilizadorId;
+  static String? _token;
 
-  static bool get autenticado => _utilizadorId != null;
+  /// ID do utilizador atualmente autenticado.
+  static int? get utilizadorId => _utilizadorId;
 
-  /// RF03 — terminar sessão: a app esquece quem entrou.
+  static bool get autenticado =>
+      _utilizadorId != null && _token != null;
+
+  /// Termina a sessão local.
   static void terminarSessao() {
     _utilizadorId = null;
+    _token = null;
     _perfil = DadosExemplo.perfil;
   }
 
-  /// Faz um pedido à API e devolve o JSON da resposta. Se a API devolver
-  /// {"erro": "..."}, lança ApiException com essa mensagem.
-  static Future<dynamic> _pedido(String metodo, String caminho, {Object? corpo}) async {
+  /// Executa pedidos HTTP e envia o JWT nas rotas protegidas.
+  static Future<dynamic> _pedido(
+    String metodo,
+    String caminho, {
+    Object? corpo,
+  }) async {
     final uri = Uri.parse('$baseUrl$caminho');
-    const cabecalhos = {'Content-Type': 'application/json'};
+
+    final cabecalhos = <String, String>{
+      'Content-Type': 'application/json',
+      if (_token != null) 'Authorization': 'Bearer $_token',
+    };
+
     final http.Response resposta;
+
     try {
-      final pedido = metodo == 'POST'
-          ? http.post(uri, headers: cabecalhos, body: jsonEncode(corpo))
-          : http.get(uri, headers: cabecalhos);
+      final body = corpo == null ? null : jsonEncode(corpo);
+
+      final pedido = switch (metodo) {
+        'POST' => http.post(uri, headers: cabecalhos, body: body),
+        'PUT' => http.put(uri, headers: cabecalhos, body: body),
+        'GET' => http.get(uri, headers: cabecalhos),
+        _ => throw ArgumentError('Método HTTP não suportado: $metodo'),
+      };
+
       resposta = await pedido.timeout(const Duration(seconds: 10));
     } on TimeoutException {
       throw const ApiException('O servidor demorou demasiado a responder.');
     } on http.ClientException {
-      throw const ApiException('Não foi possível ligar ao servidor. A API está a correr?');
+      throw const ApiException(
+        'Não foi possível ligar ao servidor. A API está a correr?',
+      );
     }
-    final dados = resposta.bodyBytes.isEmpty ? null : jsonDecode(utf8.decode(resposta.bodyBytes));
+
+    final texto = utf8.decode(resposta.bodyBytes);
+    final dados = texto.isEmpty ? null : jsonDecode(texto);
+
     if (resposta.statusCode >= 400) {
-      final mensagem = dados is Map && dados['erro'] is String ? dados['erro'] as String : 'Erro ${resposta.statusCode}';
+      final mensagem = dados is Map && dados['erro'] is String
+          ? dados['erro'] as String
+          : 'Erro ${resposta.statusCode}';
+
       throw ApiException(mensagem, resposta.statusCode);
     }
+
     return dados;
   }
 
-  // Na base de dados os horários são dia ('Seg'…'Dom') + período ('Manhã', 'Tarde', 'Noite').
-  static const _dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-  static const _periodos = {
-    'Manhã': ('08:00', '12:00'),
-    'Tarde': ('12:00', '18:00'),
-    'Noite': ('18:00', '22:00'),
-  };
+  /// Converte a resposta de GET /perfil para o modelo Perfil.
+  static Perfil _perfilDaApi(Map<String, dynamic> json) {
+    final modalidadesJson = json['modalidades'] as List? ?? const [];
+    final disponibilidadeJson =
+        json['disponibilidade'] as List? ?? const [];
 
-  /// Converte o JSON de GET /perfil/:id no Perfil usado pelos ecrãs. Os campos
-  /// que a base de dados ainda não tem (localidade, raio…) ficam como estavam.
-  static Perfil _perfilDaApi(Map<String, dynamic> json) => Perfil(
-        id: json['id'] as int,
-        nome: json['nome'] as String,
-        email: json['email'] as String,
-        localidade: _perfil.localidade,
-        raioKm: _perfil.raioKm,
-        objetivo: _perfil.objetivo,
-        avaliacao: _perfil.avaliacao,
-        modalidades: [
-          for (final d in json['desportos'] as List)
-            ModalidadeNivel(
-              id: DadosExemplo.modalidades
-                  .firstWhere((m) => m.nome == d['desporto'],
-                      orElse: () => const Modalidade(id: 0, nome: '', descricao: ''))
-                  .id,
-              nome: d['desporto'] as String,
-              nivel: d['nivel'] as String,
-            ),
-        ],
-        disponibilidade: [
-          for (final h in json['disponibilidade'] as List)
-            if (_dias.contains(h['dia']) && _periodos.containsKey(h['periodo']))
-              Disponibilidade(
-                diaSemana: _dias.indexOf(h['dia'] as String) + 1,
-                horaInicio: _periodos[h['periodo']]!.$1,
-                horaFim: _periodos[h['periodo']]!.$2,
-              ),
-        ],
-      );
-
-  /// Pequena pausa para os ecrãs mostrarem o "A carregar…" como com o servidor.
-  static Future<void> _espera() => Future.delayed(const Duration(milliseconds: 250));
+    return Perfil(
+      id: (json['id'] as num).toInt(),
+      nome: json['nome'] as String,
+      email: json['email'] as String,
+      localidade: json['localidade'] as String?,
+      raioKm: (json['raio_km'] as num?)?.toInt() ?? _perfil.raioKm,
+      objetivo: json['objetivo'] as String? ?? _perfil.objetivo,
+      avaliacao: (json['avaliacao'] as num?)?.toDouble(),
+      modalidades: [
+        for (final item in modalidadesJson)
+          ModalidadeNivel(
+            id: (item['id'] as num).toInt(),
+            nome: item['nome'] as String,
+            nivel: item['nivel'] as String,
+          ),
+      ],
+      disponibilidade: [
+        for (final item in disponibilidadeJson)
+          Disponibilidade(
+            diaSemana: (item['dia_semana'] as num).toInt(),
+            horaInicio: item['hora_inicio'] as String,
+            horaFim: item['hora_fim'] as String,
+          ),
+      ],
+    );
+  }
 
   static Perfil _perfil = DadosExemplo.perfil;
-  static final List<Jogo> _jogos = [DadosExemplo.jogo];
-  static final List<Convite> _enviados = DadosExemplo.convitesEnviados;
-  static final List<Convite> _recebidos = DadosExemplo.convitesRecebidos;
-  static final List<Aviso> _avisos = DadosExemplo.avisos;
-  static int _proximoId = 100;
 
-  // ---------------------------------------------------------------- autenticação
+  // ---------------------------------------------------------------------------
+  // Autenticação
+  // ---------------------------------------------------------------------------
 
-  /// POST /login → { id, nome }
+  /// POST /auth/login.
   static Future<void> login(String email, String password) async {
-    final dados = await _pedido('POST', '/login', corpo: {'email': email, 'password': password});
-    _utilizadorId = dados['id'] as int;
-    _perfil = DadosExemplo.perfil;
+    final dados = await _pedido(
+      'POST',
+      '/auth/login',
+      corpo: {
+        'email': email,
+        'password': password,
+      },
+    ) as Map<String, dynamic>;
+
+    final utilizador = dados['utilizador'] as Map<String, dynamic>;
+
+    _token = dados['token'] as String;
+    _utilizadorId = (utilizador['id'] as num).toInt();
+
     await perfil();
   }
 
-  /// POST /registo → { id, nome }
-  static Future<void> registo(String nome, String email, String password) async {
-    final dados = await _pedido('POST', '/registo', corpo: {'nome': nome, 'email': email, 'password': password});
-    _utilizadorId = dados['id'] as int;
-    _perfil = Perfil(
-      id: _utilizadorId!,
-      nome: dados['nome'] as String,
-      email: email,
-      localidade: null,
-      raioKm: 5,
-      objetivo: 'Jogos amigáveis',
-      avaliacao: null,
-      modalidades: const [],
-      disponibilidade: const [],
-    );
+  /// POST /auth/registo.
+  static Future<void> registo(
+    String nome,
+    String email,
+    String password,
+  ) async {
+    final dados = await _pedido(
+      'POST',
+      '/auth/registo',
+      corpo: {
+        'nome': nome,
+        'email': email,
+        'password': password,
+      },
+    ) as Map<String, dynamic>;
+
+    final utilizador = dados['utilizador'] as Map<String, dynamic>;
+
+    _token = dados['token'] as String;
+    _utilizadorId = (utilizador['id'] as num).toInt();
+
+    await perfil();
   }
 
-  // ---------------------------------------------------------------- perfil
+  // ---------------------------------------------------------------------------
+  // Perfil e modalidades
+  // ---------------------------------------------------------------------------
 
+  /// GET /modalidades.
   static Future<List<Modalidade>> modalidades() async {
-    await _espera();
-    return DadosExemplo.modalidades;
-  }
+    final dados = await _pedido('GET', '/modalidades') as List;
 
-  /// GET /perfil/:id → nome, email, desportos e disponibilidade de quem entrou.
-  static Future<Perfil> perfil() async {
-    if (_utilizadorId == null) throw const ApiException('Falta saber quem és. Entra outra vez.');
-    final dados = await _pedido('GET', '/perfil/$_utilizadorId');
-    _perfil = _perfilDaApi(dados as Map<String, dynamic>);
-    return _perfil;
-  }
-
-  static Future<void> atualizarPerfil(Map<String, Object?> campos) async {
-    await _espera();
-    _perfil = Perfil(
-      id: _perfil.id,
-      nome: _perfil.nome,
-      email: _perfil.email,
-      localidade: campos['localidade'] as String? ?? _perfil.localidade,
-      raioKm: _perfil.raioKm,
-      objetivo: _perfil.objetivo,
-      avaliacao: _perfil.avaliacao,
-      modalidades: _perfil.modalidades,
-      disponibilidade: _perfil.disponibilidade,
-    );
-  }
-
-  /// POST /onboarding → grava os desportos escolhidos (os horários ficam como estavam).
-  static Future<void> atualizarModalidades(List<int> ids, {String nivel = 'Iniciante'}) async {
-    if (_utilizadorId == null) throw const ApiException('Falta saber quem és. Entra outra vez.');
-    if (ids.isEmpty) throw const ApiException('Escolhe pelo menos um desporto.');
-    await _pedido('POST', '/onboarding', corpo: {
-      'utilizador_id': _utilizadorId,
-      'desportos': [
-        for (final m in DadosExemplo.modalidades)
-          if (ids.contains(m.id)) {'desporto': m.nome, 'nivel': nivel},
-      ],
-    });
-    _perfil = Perfil(
-      id: _perfil.id,
-      nome: _perfil.nome,
-      email: _perfil.email,
-      localidade: _perfil.localidade,
-      raioKm: _perfil.raioKm,
-      objetivo: _perfil.objetivo,
-      avaliacao: _perfil.avaliacao,
-      modalidades: [
-        for (final m in DadosExemplo.modalidades)
-          if (ids.contains(m.id)) ModalidadeNivel(id: m.id, nome: m.nome, nivel: nivel),
-      ],
-      disponibilidade: _perfil.disponibilidade,
-    );
-  }
-
-  // ---------------------------------------------------------------- jogadores
-
-  static Future<List<Jogador>> jogadores({required int modalidadeId, int? raioKm}) async {
-    await _espera();
     return [
-      for (final j in DadosExemplo.jogadores)
-        if (raioKm == null || j.distanciaKm <= raioKm) j,
+      for (final item in dados)
+        Modalidade(
+          id: (item['id'] as num).toInt(),
+          nome: item['nome'] as String,
+          descricao: item['descricao'] as String? ?? '',
+        ),
     ];
   }
 
-  // ---------------------------------------------------------------- jogos
+  /// GET /perfil.
+  static Future<Perfil> perfil() async {
+    if (!autenticado) {
+      throw const ApiException('Falta saber quem és. Entra outra vez.');
+    }
 
-  static Future<List<Jogo>> jogos() async {
-    await _espera();
-    return List.of(_jogos);
+    final dados = await _pedido('GET', '/perfil') as Map<String, dynamic>;
+
+    _perfil = _perfilDaApi(dados);
+    return _perfil;
   }
 
+  /// PUT /perfil.
+  static Future<void> atualizarPerfil(Map<String, Object?> campos) async {
+    if (!autenticado) {
+      throw const ApiException('Falta saber quem és. Entra outra vez.');
+    }
+
+    await _pedido('PUT', '/perfil', corpo: campos);
+    await perfil();
+  }
+
+  /// PUT /perfil/modalidades.
+  static Future<void> atualizarModalidades(
+    List<int> ids, {
+    String nivel = 'Iniciante',
+  }) async {
+    if (!autenticado) {
+      throw const ApiException('Falta saber quem és. Entra outra vez.');
+    }
+
+    if (ids.isEmpty) {
+      throw const ApiException('Escolhe pelo menos um desporto.');
+    }
+
+    await _pedido(
+      'PUT',
+      '/perfil/modalidades',
+      corpo: {
+        'modalidades': [
+          for (final id in ids)
+            {
+              'modalidade_id': id,
+              'nivel': nivel,
+            },
+        ],
+      },
+    );
+
+    await perfil();
+  }
+
+  /// PUT /perfil/disponibilidade.
+  /// Substitui a disponibilidade semanal do utilizador.
+  static Future<void> atualizarDisponibilidade(
+    List<Map<String, Object?>> disponibilidade,
+  ) async {
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para editar a disponibilidade.');
+    }
+
+    await _pedido(
+      'PUT',
+      '/perfil/disponibilidade',
+      corpo: {
+        'disponibilidade': disponibilidade,
+      },
+    );
+
+    await perfil();
+  }
+
+  /// PUT /perfil/modalidades.
+  /// Atualiza cada modalidade com o respetivo nível individual.
+  static Future<void> atualizarModalidadesDetalhadas(
+    Map<int, String> modalidades,
+  ) async {
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para editar as modalidades.');
+    }
+
+    if (modalidades.isEmpty) {
+      throw const ApiException('Escolhe pelo menos um desporto.');
+    }
+
+    await _pedido(
+      'PUT',
+      '/perfil/modalidades',
+      corpo: {
+        'modalidades': [
+          for (final entrada in modalidades.entries)
+            {
+              'modalidade_id': entrada.key,
+              'nivel': entrada.value,
+            },
+        ],
+      },
+    );
+
+    await perfil();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Jogadores
+  // ---------------------------------------------------------------------------
+
+  /// GET /jogadores.
+  static Future<List<Jogador>> jogadores({
+    required int modalidadeId,
+    int? raioKm,
+  }) async {
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para procurar jogadores.');
+    }
+
+    final parametros = <String, String>{
+      'modalidade': modalidadeId.toString(),
+      if (raioKm != null) 'raio': raioKm.toString(),
+    };
+
+    final query = Uri(queryParameters: parametros).query;
+
+    final dados = await _pedido(
+      'GET',
+      '/jogadores?$query',
+    ) as Map<String, dynamic>;
+
+    final lista = dados['jogadores'] as List? ?? const [];
+
+    return [
+      for (final item in lista)
+        Jogador.fromJson(Map<String, dynamic>.from(item as Map)),
+    ];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Jogos (API + MySQL)
+  // ---------------------------------------------------------------------------
+
+  /// GET /jogos ou GET /jogos?modalidade=ID.
+  static Future<List<Jogo>> jogos({int? modalidadeId}) async {
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para consultar os jogos.');
+    }
+
+    final query = modalidadeId == null
+        ? ''
+        : '?modalidade=${Uri.encodeQueryComponent(modalidadeId.toString())}';
+
+    final dados = await _pedido('GET', '/jogos$query') as List;
+
+    return [
+      for (final item in dados)
+        Jogo.fromJson(Map<String, dynamic>.from(item as Map)),
+    ];
+  }
+
+  /// GET /jogos/historico.
+  /// Filtros: todos, organizados ou participados.
+  static Future<List<dynamic>> historicoJogos({
+    String filtro = 'todos',
+  }) async {
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para consultar o histórico.');
+    }
+
+    final query = Uri(
+      queryParameters: {'filtro': filtro},
+    ).query;
+
+    final dados = await _pedido(
+      'GET',
+      '/jogos/historico?$query',
+    ) as List;
+
+    return dados;
+  }
+
+  /// GET /jogos/estatisticas.
+  static Future<Map<String, dynamic>> estatisticasJogos() async {
+    if (!autenticado) {
+      throw const ApiException(
+        'Inicia sessão para consultar as estatísticas.',
+      );
+    }
+
+    final dados = await _pedido(
+      'GET',
+      '/jogos/estatisticas',
+    ) as Map<String, dynamic>;
+
+    return dados;
+  }
+
+  /// GET /jogos/:id/presencas.
+  static Future<Map<String, dynamic>> presencasJogo(int jogoId) async {
+    if (!autenticado) {
+      throw const ApiException(
+        'Inicia sessão para consultar as presenças.',
+      );
+    }
+
+    final dados = await _pedido(
+      'GET',
+      '/jogos/$jogoId/presencas',
+    ) as Map<String, dynamic>;
+
+    return dados;
+  }
+
+  /// GET /jogos/:id.
   static Future<Jogo> jogo(int id) async {
-    await _espera();
-    return _jogos.firstWhere((j) => j.id == id, orElse: () => throw const ApiException('Jogo não encontrado.'));
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para consultar este jogo.');
+    }
+
+    final dados = await _pedido(
+      'GET',
+      '/jogos/$id',
+    ) as Map<String, dynamic>;
+
+    return Jogo.fromJson(dados);
   }
 
+  /// POST /jogos.
+  /// O organizador ocupa automaticamente um lugar.
   static Future<int> criarJogo({
     required int modalidadeId,
     required DateTime dataHora,
@@ -236,102 +435,220 @@ abstract final class Api {
     required int vagasAbertas,
     required double preco,
   }) async {
-    await _espera();
-    if (local.isEmpty) throw const ApiException('Indica o local do jogo.');
-    final modalidade = DadosExemplo.modalidades.firstWhere((m) => m.id == modalidadeId);
-    final ocupados = capacidade - vagasAbertas;
-    final jogo = Jogo(
-      id: _proximoId++,
-      organizador: _perfil.nome,
-      modalidadeId: modalidadeId,
-      modalidade: modalidade.nome,
-      dataHora: dataHora,
-      localNome: local,
-      nivel: nivel,
-      formato: formato,
-      capacidade: capacidade,
-      ocupados: ocupados,
-      vagas: vagasAbertas,
-      preco: preco,
-      distanciaKm: 0,
-      participantes: [Participante(id: _perfil.id, nome: _perfil.nome, organizador: true, nivel: nivel)],
-      euParticipo: true,
-    );
-    _jogos.add(jogo);
-    return jogo.id;
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para criar um jogo.');
+    }
+
+    if (local.trim().isEmpty) {
+      throw const ApiException('Indica o local do jogo.');
+    }
+
+    if (capacidade < 2 || vagasAbertas < 1 || vagasAbertas >= capacidade) {
+      throw const ApiException('O número de vagas não é válido.');
+    }
+
+    if (dataHora.isBefore(DateTime.now())) {
+      throw const ApiException('A data do jogo tem de ser futura.');
+    }
+
+    final dados = await _pedido(
+      'POST',
+      '/jogos',
+      corpo: {
+        'modalidade_id': modalidadeId,
+        'data_hora': dataHora.toIso8601String(),
+        'local_nome': local.trim(),
+        'nivel': nivel,
+        'formato': formato,
+        'capacidade': capacidade,
+        'vagas_abertas': vagasAbertas,
+        'preco': preco,
+      },
+    ) as Map<String, dynamic>;
+
+    return (dados['id'] as num).toInt();
   }
 
-  /// Entra no jogo (ou, se já lá estiver, devolve o código que já tinha).
+  /// POST /jogos/:id/entrar.
+  /// Devolve o código de check-in associado à inscrição.
   static Future<String> entrarNoJogo(int id) async {
-    final jogo = await Api.jogo(id);
-    final codigo = 'WHOPLAY-${jogo.id}-${_perfil.id}';
-    if (jogo.euParticipo) return codigo;
-    if (jogo.vagas == 0) throw const ApiException('Este jogo já está cheio.');
-    _jogos[_jogos.indexOf(jogo)] = Jogo(
-      id: jogo.id,
-      organizador: jogo.organizador,
-      modalidadeId: jogo.modalidadeId,
-      modalidade: jogo.modalidade,
-      dataHora: jogo.dataHora,
-      localNome: jogo.localNome,
-      nivel: jogo.nivel,
-      formato: jogo.formato,
-      capacidade: jogo.capacidade,
-      ocupados: jogo.ocupados + 1,
-      vagas: jogo.vagas - 1,
-      preco: jogo.preco,
-      distanciaKm: jogo.distanciaKm,
-      participantes: [
-        ...jogo.participantes,
-        Participante(id: _perfil.id, nome: _perfil.nome, organizador: false, nivel: jogo.nivel),
-      ],
-      euParticipo: true,
-    );
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para entrar num jogo.');
+    }
+
+    final dados = await _pedido(
+      'POST',
+      '/jogos/$id/entrar',
+    ) as Map<String, dynamic>;
+
+    final codigo = dados['codigo_checkin'] as String?;
+
+    if (codigo == null || codigo.isEmpty) {
+      throw const ApiException('A API não devolveu o código de check-in.');
+    }
+
     return codigo;
   }
 
-  // ---------------------------------------------------------------- convites e avisos
-
-  static Future<({List<Convite> enviados, List<Convite> recebidos})> convites() async {
-    await _espera();
-    return (enviados: List.of(_enviados), recebidos: List.of(_recebidos));
-  }
-
-  static Future<void> enviarConvite({required int jogadorId, required int modalidadeId, required DateTime dataHora}) async {
-    await _espera();
-    if (_enviados.any((c) => c.jogadorId == jogadorId)) {
-      throw const ApiException('Já tens um convite à espera de resposta deste jogador.');
+  /// GET /jogos/:id/checkin.
+  /// Devolve o código QR e a data de check-in, se já foi confirmado.
+  static Future<Map<String, dynamic>> codigoCheckin(int jogoId) async {
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para consultar o QR Code.');
     }
-    final jogador = DadosExemplo.jogadores.firstWhere((j) => j.id == jogadorId);
-    _enviados.add(Convite(
-      id: _proximoId++,
-      estado: 'pendente',
-      dataHora: dataHora,
-      modalidade: DadosExemplo.modalidades.firstWhere((m) => m.id == modalidadeId).nome,
-      jogadorId: jogadorId,
-      nome: jogador.nome,
-      distanciaKm: jogador.distanciaKm,
-    ));
+
+    return await _pedido(
+      'GET',
+      '/jogos/$jogoId/checkin',
+    ) as Map<String, dynamic>;
   }
 
-  static Future<void> responderConvite(int id, {required bool aceitar}) async {
-    await _espera();
-    final convite = _recebidos.firstWhere((c) => c.id == id);
-    _recebidos.remove(convite);
-    _avisos.insert(
-      0,
-      Aviso(
-        id: _proximoId++,
-        titulo: aceitar ? 'Aceitaste o convite de ${convite.nome}' : 'Recusaste o convite de ${convite.nome}',
-        detalhe: '',
-        lida: false,
-        criadoEm: DateTime.now(),
-      ),
+  /// POST /jogos/checkin.
+  /// O organizador envia o código lido do QR Code.
+  static Future<Map<String, dynamic>> confirmarCheckin(String codigo) async {
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para confirmar presenças.');
+    }
+
+    if (codigo.trim().isEmpty) {
+      throw const ApiException('Código de check-in inválido.');
+    }
+
+    return await _pedido(
+      'POST',
+      '/jogos/checkin',
+      corpo: {'codigo': codigo.trim()},
+    ) as Map<String, dynamic>;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Convites (API + MySQL)
+  // ---------------------------------------------------------------------------
+
+  static Convite _conviteDaApi(Map<String, dynamic> json) {
+    final dataHora = json['data_hora'];
+
+    return Convite(
+      id: (json['id'] as num).toInt(),
+      estado: json['estado'] as String,
+      dataHora: dataHora is DateTime
+          ? dataHora
+          : DateTime.parse(dataHora.toString()),
+      modalidade: json['modalidade'] as String,
+      jogadorId: (json['jogador_id'] as num).toInt(),
+      nome: json['nome'] as String,
+      distanciaKm: (json['distancia_km'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
+  /// GET /convites.
+  static Future<({List<Convite> enviados, List<Convite> recebidos})>
+      convites() async {
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para consultar os convites.');
+    }
+
+    final dados = await _pedido(
+      'GET',
+      '/convites',
+    ) as Map<String, dynamic>;
+
+    final enviadosJson = dados['enviados'] as List? ?? const [];
+    final recebidosJson = dados['recebidos'] as List? ?? const [];
+
+    return (
+      enviados: [
+        for (final item in enviadosJson)
+          _conviteDaApi(Map<String, dynamic>.from(item as Map)),
+      ],
+      recebidos: [
+        for (final item in recebidosJson)
+          _conviteDaApi(Map<String, dynamic>.from(item as Map)),
+      ],
+    );
+  }
+
+  /// POST /convites.
+  static Future<void> enviarConvite({
+    required int jogadorId,
+    required int modalidadeId,
+    required DateTime dataHora,
+  }) async {
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para enviar convites.');
+    }
+
+    await _pedido(
+      'POST',
+      '/convites',
+      corpo: {
+        'destinatario_id': jogadorId,
+        'modalidade_id': modalidadeId,
+        'data_hora': dataHora.toIso8601String(),
+      },
+    );
+  }
+
+  /// POST /convites/:id/aceitar ou /convites/:id/recusar.
+  static Future<void> responderConvite(
+    int id, {
+    required bool aceitar,
+  }) async {
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para responder a convites.');
+    }
+
+    final acao = aceitar ? 'aceitar' : 'recusar';
+
+    await _pedido(
+      'POST',
+      '/convites/$id/$acao',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Avisos (API + MySQL)
+  // ---------------------------------------------------------------------------
+
+  static Aviso _avisoDaApi(Map<String, dynamic> json) {
+    return Aviso(
+      id: (json['id'] as num).toInt(),
+      titulo: json['titulo'] as String,
+      detalhe: json['detalhe'] as String? ?? '',
+      lida: json['lida'] == true || json['lida'] == 1,
+      criadoEm: DateTime.parse(json['criado_em'].toString()),
+    );
+  }
+
+  /// GET /avisos.
   static Future<List<Aviso>> avisos() async {
-    await _espera();
-    return List.of(_avisos);
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para consultar os avisos.');
+    }
+
+    final dados = await _pedido('GET', '/avisos') as List;
+
+    return [
+      for (final item in dados)
+        _avisoDaApi(Map<String, dynamic>.from(item as Map)),
+    ];
+  }
+
+  /// POST /avisos/lidos.
+  static Future<void> marcarAvisosLidos() async {
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para atualizar os avisos.');
+    }
+
+    await _pedido('POST', '/avisos/lidos');
+  }
+
+  /// POST /avisos/:id/lido.
+  static Future<void> marcarAvisoLido(int id) async {
+    if (!autenticado) {
+      throw const ApiException('Inicia sessão para atualizar os avisos.');
+    }
+
+    await _pedido('POST', '/avisos/$id/lido');
   }
 }
