@@ -7,145 +7,381 @@ Projeto Multidisciplinar — Desenvolvimento de uma aplicação móvel em Flutte
 ## Grupo 6
 
 | Nome | Número |
-| --- | --- |
+|---|---:|
 | Cristiano Cordeiro | 20251285 |
 | Hélio José | 20250953 |
 | Sebastião Cardoso | 20251225 |
 | Tchali Tchalimba | 20252440 |
 
-Repositório: https://github.com/tchaliuziel/WhoPlay-app
+**Repositório:** https://github.com/tchaliuziel/WhoPlay-app
 
-## Tema
+---
 
-O WhoPlay é uma aplicação que liga pessoas para praticar desporto (padel, ténis,
-futebol, BJJ e outras modalidades). Com base na localização, no nível, na
-disponibilidade e no objetivo de cada utilizador, a aplicação mostra os jogadores
-mais compatíveis e os jogos com vagas perto de si.
+## 1. Tema e descrição do projeto
 
-## Ecrãs disponíveis
+O **WhoPlay** é uma aplicação móvel desenvolvida em Flutter que permite encontrar pessoas para praticar desporto, organizar jogos e participar em atividades desportivas.
 
-A app tem os 10 ecrãs dos mockups. Abre no **Login**; depois de entrar, a barra
-inferior tem 5 entradas: Jogadores, Mapa, **+** (Criar jogo), Convites e Perfil.
+A aplicação liga jogadores com base em critérios como:
+
+- Modalidade desportiva;
+- Localização e distância;
+- Nível de experiência;
+- Disponibilidade;
+- Objetivos desportivos.
+
+O objetivo é facilitar a organização de atividades desportivas, aproximando pessoas com interesses e características compatíveis.
+
+Entre as modalidades consideradas encontram-se Padel, Ténis, Futebol, BJJ, Basquetebol, Voleibol, Corrida e Fitness.
+
+## 2. Tecnologias utilizadas
+
+| Tecnologia | Utilização |
+|---|---|
+| Flutter | Desenvolvimento da aplicação móvel |
+| Dart | Linguagem de programação do frontend |
+| Node.js | Ambiente de execução do backend |
+| Express.js | Desenvolvimento da API REST |
+| MySQL / MariaDB | Sistema de gestão da base de dados |
+| XAMPP | Ambiente local para execução do MySQL |
+| Git e GitHub | Controlo de versões e partilha do código |
+| Visual Studio Code | Ambiente de desenvolvimento |
+
+## 3. Organização da aplicação
+
+A aplicação abre no ecrã de Login. Após autenticação, o utilizador tem acesso a cinco entradas principais na barra de navegação inferior.
+
+| Entrada | Funcionalidade |
+|---|---|
+| Explorar | Encontrar jogadores e consultar o mapa |
+| Jogos | Consultar jogos disponíveis e histórico |
+| Criar (+) | Criar um novo jogo |
+| Inbox | Consultar convites e notificações |
+| Perfil | Consultar e editar os dados do utilizador |
+
+### Ecrãs e funcionalidades
 
 | Nº | Ecrã | Como se chega |
-| --- | --- | --- |
-| 01 | Login | Ecrã inicial e depois de "Terminar sessão" |
-| 02 | Onboarding (desportos) | Login → "Criar conta" → preencher e criar |
+|---|---|---|
+| 01 | Login | Ecrã inicial e depois de terminar sessão |
+| 02 | Registo e onboarding | Login → Criar conta |
 | 03 | Perfil | Separador Perfil |
-| 04 | Encontrar jogadores | Separador Jogadores |
-| 05 | Perfil do jogador | Jogadores → "Ver perfil" |
-| 06 | Convites e avisos | Separador Convites (ou depois de enviar um convite) |
-| 07 | Criar jogo | Botão verde **+** da barra inferior |
-| 08 | Mapa | Separador Mapa |
-| 09 | Detalhe do jogo | Mapa → "Ver jogo", ou depois de criar um jogo |
-| 10 | Check-in por QR Code | Detalhe do jogo → "Entrar no jogo" / "Ver o meu QR Code" |
+| 04 | Encontrar jogadores | Explorar → Jogadores |
+| 05 | Perfil do jogador | Jogadores → Ver perfil |
+| 06 | Convites e notificações | Inbox |
+| 07 | Criar jogo | Botão central (+) |
+| 08 | Mapa | Explorar → Mapa |
+| 09 | Detalhe do jogo | Consultar um jogo |
+| 10 | Check-in por QR Code | Detalhe do jogo → Check-in |
+| 11 | Histórico | Jogos → Histórico |
 
-O ecrã "Criar conta" (registo) não está nos mockups e segue o estilo do "Criar jogo".
+O ecrã de registo permite criar uma conta e selecionar modalidades desportivas. O histórico permite consultar os jogos em que o utilizador participou ou que organizou.
 
-## Instruções de execução
+## 4. Funcionalidades implementadas
 
-Requisitos: Flutter SDK 3.22 ou mais recente (testado com o Flutter 3.47 / Dart 3.13)
-e ligação à internet na primeira execução (as fontes Bricolage Grotesque e DM Sans
-são descarregadas pelo pacote `google_fonts`).
+A aplicação integra funcionalidades de autenticação, gestão de perfil, pesquisa de jogadores e organização de jogos.
 
-Na pasta do projeto:
+### 4.1 Autenticação e utilizadores
 
-```bash
+- Registo de novos utilizadores;
+- Início e encerramento de sessão;
+- Autenticação através da API;
+- Consulta e atualização do perfil.
+
+### 4.2 Perfil desportivo
+
+- Atualização dos dados pessoais;
+- Seleção de modalidades desportivas;
+- Definição do nível de experiência;
+- Definição de objetivos;
+- Configuração da disponibilidade semanal.
+
+### 4.3 Pesquisa e compatibilidade
+
+- Consulta de jogadores;
+- Pesquisa por modalidade;
+- Consulta de nível e localização;
+- Apresentação de jogadores compatíveis.
+
+### 4.4 Gestão de jogos
+
+- Criação de jogos;
+- Consulta de jogos disponíveis;
+- Entrada em jogos;
+- Consulta de participantes;
+- Consulta do histórico de jogos.
+
+### 4.5 Convites e notificações
+
+- Envio de convites;
+- Consulta de convites recebidos;
+- Aceitação e recusa de convites;
+- Consulta de notificações.
+
+### 4.6 Localização e check-in
+
+- Consulta do mapa da aplicação;
+- Consulta de jogos associados à localização;
+- Geração e consulta de QR Code para check-in.
+
+**Nota:** a utilização de GPS real, notificações push e validação presencial do check-in devem ser distinguidas das funcionalidades que já estejam efetivamente integradas e testadas no dispositivo.
+
+## 5. Backend e API REST
+
+O backend encontra-se na pasta `backend/` e foi desenvolvido com Node.js e Express.js.
+
+A API disponibiliza serviços para comunicação entre a aplicação Flutter e a base de dados MySQL.
+
+### Organização do backend
+
+```text
+backend/
+├── src/
+│   ├── server.js
+│   ├── config/
+│   ├── middleware/
+│   └── routes/
+│       ├── auth.js
+│       ├── modalidades.js
+│       ├── perfil.js
+│       ├── jogadores.js
+│       ├── jogos.js
+│       ├── convites.js
+│       └── avisos.js
+├── package.json
+├── package-lock.json
+└── .env.example
+```
+
+### Principais recursos da API
+
+| Recurso | Responsabilidade |
+|---|---|
+| Autenticação | Registo e login |
+| Modalidades | Consulta e gestão das modalidades |
+| Perfil | Consulta e atualização do perfil |
+| Jogadores | Pesquisa e consulta de jogadores |
+| Jogos | Criação, consulta e participação em jogos |
+| Convites | Envio e gestão de convites |
+| Avisos | Consulta de notificações |
+
+A comunicação é realizada através de pedidos HTTP, com respostas em formato JSON. As operações protegidas utilizam autenticação por token, conforme a implementação do backend.
+
+## 6. Base de dados
+
+O projeto utiliza uma base de dados MySQL denominada `whoplay`.
+
+A base de dados foi estruturada para representar os utilizadores, as modalidades desportivas, as disponibilidades e a organização dos jogos.
+
+### Tabelas principais
+
+| Tabela | Descrição |
+|---|---|
+| `utilizadores` | Dados e credenciais dos utilizadores |
+| `modalidades` | Modalidades desportivas disponíveis |
+| `utilizador_modalidades` | Relação entre utilizadores e modalidades, incluindo nível |
+| `disponibilidades` | Horários em que os utilizadores estão disponíveis |
+| `jogos` | Jogos criados pelos utilizadores |
+| `jogo_participantes` | Relação entre jogos e participantes |
+| `convites` | Convites enviados entre utilizadores |
+| `notificacoes` | Notificações associadas às atividades da aplicação |
+
+A estrutura utiliza relações entre tabelas para evitar duplicação desnecessária de informação e manter a integridade dos dados.
+
+Os scripts SQL do projeto devem estar organizados da seguinte forma:
+
+```text
+database/
+├── create.sql
+├── populate.sql
+└── queries.sql
+```
+
+- `create.sql`: criação da base de dados e das tabelas;
+- `populate.sql`: inserção de dados de exemplo;
+- `queries.sql`: consultas SQL utilizadas no projeto.
+
+**Importante:** não executar scripts que eliminem a base de dados existente sem salvaguardar previamente os dados.
+
+## 7. Instruções de execução
+
+### 7.1 Requisitos
+
+- Flutter SDK 3.22 ou superior;
+- Dart compatível com a versão do Flutter instalada;
+- Node.js e npm;
+- XAMPP com MySQL/MariaDB;
+- Visual Studio Code;
+- Dispositivo Android, emulador ou Chrome.
+
+### 7.2 Configuração da base de dados
+
+1. Abrir o XAMPP.
+2. Iniciar o serviço MySQL.
+3. Abrir o phpMyAdmin.
+4. Criar ou importar a estrutura da base de dados `whoplay`.
+5. Executar os scripts de população, caso seja necessário inserir dados de demonstração.
+
+Utilizar os scripts existentes no projeto e evitar executar novamente scripts destrutivos sobre uma base de dados que já contenha informação.
+
+### 7.3 Configuração do backend
+
+Abrir um terminal na pasta do backend:
+
+```powershell
+cd backend
+```
+
+Instalar as dependências:
+
+```powershell
+npm.cmd install
+```
+
+Configurar as variáveis de ambiente de acordo com o ficheiro `.env.example`, incluindo os dados de ligação à base de dados e as configurações de autenticação.
+
+Iniciar o servidor:
+
+```powershell
+npm.cmd run dev
+```
+
+A API deverá ficar disponível em:
+
+```text
+http://localhost:3000
+```
+
+Para verificar o estado da API e da ligação à base de dados:
+
+```text
+http://localhost:3000/saude
+```
+
+O terminal do backend deve permanecer aberto enquanto a aplicação estiver a utilizar os serviços.
+
+### 7.4 Executar a aplicação Flutter
+
+Na pasta principal do projeto:
+
+```powershell
 flutter pub get
+```
+
+Para executar no Chrome:
+
+```powershell
 flutter run -d chrome
 ```
 
-Para correr num emulador Android ou num telemóvel ligado ao PC:
+Para executar num emulador Android:
 
-```bash
+```powershell
 flutter devices
-flutter run -d <id-do-dispositivo>
+flutter run -d <id-do-emulador>
 ```
 
-Para verificar o código:
+Para executar num telemóvel Android ligado ao computador, é necessário utilizar o endereço IP local do computador em vez de `localhost` ou `10.0.2.2`.
 
-```bash
+Exemplo:
+
+```powershell
+flutter run -d <id-do-dispositivo> --dart-define=API_URL=http://192.168.1.67:3000
+```
+
+O endereço IP deve ser ajustado à rede local utilizada. O telemóvel e o computador têm de estar ligados à mesma rede Wi-Fi, e a firewall deve permitir a comunicação com o servidor.
+
+### 7.5 Verificação do projeto
+
+Para analisar o código:
+
+```powershell
 flutter analyze
+```
+
+Para executar os testes:
+
+```powershell
 flutter test
 ```
 
-## API do login (`api_login/`)
-
-O login, o registo, os desportos do onboarding e o perfil (nome, email, desportos,
-horários) são guardados a sério no MySQL do XAMPP, através da API em `api_login/`
-(Node.js + Express, base de dados `whoplay_login`).
-
-1. Ligar o MySQL no XAMPP.
-2. Só da primeira vez: importar `api_login/schema.sql` no phpMyAdmin (cria a base de
-   dados `whoplay_login` e as tabelas).
-3. Só da primeira vez: instalar as dependências da API (`node_modules` não vai para o Git):
-
-```bash
-cd api_login
-npm install
-```
-
-4. Arrancar a API (fica em `http://localhost:3000`):
-
-```bash
-cd api_login
-npm start
-```
-
-Cada pessoa tem a sua própria base de dados no seu XAMPP: as contas criadas num PC não
-existem nos outros. Na primeira vez, cria uma conta em "Criar conta".
-
-5. Correr a app: `flutter pub get` e depois `flutter run -d chrome`.
-
-## Funcionalidades simuladas
-
-Tudo o resto ainda funciona **sem servidor**: em `lib/services/api.dart` os jogadores,
-jogos, convites e avisos são guardados em memória. Por isso:
-
-- **Dados de exemplo:** os jogadores, o jogo, os convites e os avisos vêm de
-  `lib/data/dados_exemplo.dart` (os mesmos do `database/seed.sql`).
-- **Ações que funcionam (em memória):** enviar convites, aceitar/recusar convites,
-  criar um jogo, entrar num jogo e ver o QR Code de check-in. Ao fechar ou recarregar
-  a app volta tudo ao início.
-- **Perfil:** localidade, raio, objetivo e avaliação ainda não estão na base de dados
-  e mostram os valores de exemplo.
-- **Filtros sem ação:** as pílulas "Padel", "Ténis", "Até 5 km", "Hoje", "Raio 5 km"
-  e "Jogos e jogadores" não filtram a lista.
-- **Mapa ilustrativo:** o mapa é um desenho fixo (SVG), não usa o GPS.
-- **Ainda por fazer:** "Editar" no Perfil, "Esqueci-me da palavra-passe" e
-  "Guardar QR Code" só mostram uma mensagem.
-
-O backend completo (`backend/`, base de dados `whoplay`) ainda não está ligado; a versão
-da app para ele está em `arquivo/versao-api/lib/services/api.dart`.
-
-## Estrutura do código
+## 8. Estrutura do projeto Flutter
 
 ```text
 lib/
-├── main.dart                    arranque da aplicação
+├── main.dart
 ├── data/
-│   ├── models.dart              classes de dados (Jogador, Jogo, Perfil…)
-│   └── dados_exemplo.dart       dados fixos mostrados nos ecrãs
+│   ├── models.dart
+│   └── dados_exemplo.dart
 ├── screens/
-│   ├── home_shell.dart          barra inferior e troca de separadores
-│   ├── login_screen.dart        01 Login
-│   ├── register_screen.dart     Criar conta
-│   ├── onboarding_screen.dart   02 Onboarding
-│   ├── profile_screen.dart      03 Perfil
-│   ├── find_players_screen.dart 04 Encontrar jogadores
-│   ├── player_profile_screen.dart 05 Perfil do jogador
-│   ├── invites_screen.dart      06 Convites e avisos
-│   ├── create_game_screen.dart  07 Criar jogo
-│   ├── map_screen.dart          08 Mapa
-│   ├── game_detail_screen.dart  09 Detalhe do jogo
-│   └── checkin_screen.dart      10 Check-in por QR Code
-├── services/api.dart            login/perfil na api_login; resto em memória
-├── theme/                       cores e tipografia
-├── utils/formatos.dart          datas, distâncias e preços em pt-PT
-└── widgets/                     componentes reutilizáveis (botões, cartões, ícones…)
-test/widget_test.dart            testes unitários
+│   ├── home_shell.dart
+│   ├── login_screen.dart
+│   ├── register_screen.dart
+│   ├── onboarding_screen.dart
+│   ├── profile_screen.dart
+│   ├── profile_edit_screen.dart
+│   ├── find_players_screen.dart
+│   ├── player_profile_screen.dart
+│   ├── invites_screen.dart
+│   ├── create_game_screen.dart
+│   ├── games_screen.dart
+│   ├── history_screen.dart
+│   ├── map_screen.dart
+│   ├── game_detail_screen.dart
+│   └── checkin_screen.dart
+├── services/
+│   └── api.dart
+├── theme/
+├── utils/
+└── widgets/
+    ├── app_icons.dart
+    ├── logo.dart
+    └── bottom_nav.dart
+
+test/
+└── widget_test.dart
 ```
 
-Os ícones e o mapa são desenhados em SVG dentro do código (`lib/widgets/app_icons.dart`,
-`lib/widgets/logo.dart`, `lib/screens/map_screen.dart`), por isso o projeto não tem
-pasta de imagens.
+O ficheiro `lib/services/api.dart` centraliza a comunicação entre a aplicação Flutter e o backend.
+
+## 9. Testes e validação
+
+A validação deve contemplar a comunicação entre o frontend, a API e a base de dados.
+
+Os principais cenários de teste incluem:
+
+1. Criar uma conta e iniciar sessão;
+2. Consultar e atualizar o perfil;
+3. Consultar modalidades e níveis desportivos;
+4. Pesquisar jogadores;
+5. Criar um jogo;
+6. Consultar jogos disponíveis;
+7. Entrar num jogo;
+8. Enviar, aceitar e recusar convites;
+9. Consultar notificações;
+10. Consultar o histórico de jogos;
+11. Verificar o fluxo de check-in por QR Code;
+12. Confirmar a persistência dos dados após fechar e voltar a abrir a aplicação.
+
+Os resultados dos testes devem ser registados com o respetivo cenário, resultado esperado, resultado obtido e estado de aprovação.
+
+## 10. Estado do desenvolvimento
+
+O projeto encontra-se numa fase de protótipo funcional, com aplicação Flutter, backend Node.js/Express e base de dados MySQL integrados.
+
+A execução em dispositivo Android físico requer a configuração do endereço IP local do computador para permitir a comunicação com a API.
+
+As funcionalidades devem ser consideradas concluídas apenas após a respetiva validação integrada no dispositivo e confirmação da persistência dos dados.
+
+## 11. Organização e controlo de versões
+
+O código-fonte é mantido no GitHub:
+
+https://github.com/tchaliuziel/WhoPlay-app
+
+O Git é utilizado para controlar as alterações ao frontend, backend, scripts SQL e documentação técnica.
+
+Ficheiros de configuração locais, credenciais, pastas `node_modules/`, `.dart_tool/` e artefactos de compilação não devem ser publicados no repositório.
+
+---
+
+**WhoPlay — Encontra. Marca. Joga.**
