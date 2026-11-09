@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../data/models.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../utils/formatos.dart';
 import '../widgets/app_icons.dart';
 import '../widgets/buttons.dart';
 import '../widgets/common.dart';
 
 /// 10 Check-in por QR Code
 class CheckInScreen extends StatelessWidget {
-  const CheckInScreen({super.key, this.checkInCode = 'whoplay://checkin/padel-club-x/2026-10-03T10:00'});
+  const CheckInScreen({super.key, required this.jogo, required this.codigo});
 
-  final String checkInCode;
+  final Jogo jogo;
+
+  /// Código único deste jogador neste jogo (coluna codigo_checkin).
+  final String codigo;
 
   @override
   Widget build(BuildContext context) {
@@ -46,15 +51,15 @@ class CheckInScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 40),
-              const SectionLabel('Padel · Amigável', color: AppColors.lime, letterSpacing: 1.2),
+              SectionLabel('${jogo.modalidade} · ${jogo.formato}', color: AppColors.lime, letterSpacing: 1.2),
               const SizedBox(height: 6),
               Text(
-                'Sáb, 3 de outubro · 10:00',
+                dataMedia(jogo.dataHora),
                 textAlign: TextAlign.center,
                 style: AppText.display(24, color: AppColors.white),
               ),
               const SizedBox(height: 6),
-              Text('Padel Club X', style: AppText.body(15, color: AppColors.softText)),
+              Text(jogo.localNome, style: AppText.body(15, color: AppColors.softText)),
               const SizedBox(height: 36),
               SizedBox(
                 width: 300,
@@ -71,7 +76,7 @@ class CheckInScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: QrImageView(
-                        data: checkInCode,
+                        data: codigo,
                         size: 220,
                         padding: EdgeInsets.zero,
                         backgroundColor: AppColors.white,

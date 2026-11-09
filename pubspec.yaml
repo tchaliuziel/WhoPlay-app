@@ -13,7 +13,9 @@ dependencies:
     sdk: flutter
   google_fonts: ^6.2.1
   flutter_svg: ^2.0.10
+  http: ^1.2.2
   qr_flutter: ^4.1.0
+  mobile_scanner: ^7.5.0
 
 dev_dependencies:
   flutter_test:

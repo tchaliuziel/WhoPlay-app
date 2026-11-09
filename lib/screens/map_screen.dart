@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../data/dados_exemplo.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../utils/formatos.dart';
 import '../widgets/app_icons.dart';
 import '../widgets/buttons.dart';
 import '../widgets/common.dart';
 import 'game_detail_screen.dart';
 
-/// Ilustração do mapa (igual ao mockup). Substituir por um mapa real
-/// (ex.: google_maps_flutter / flutter_map) quando houver localização.
+
 const _mapSvg = '''
 <svg width="390" height="768" viewBox="0 0 390 768" fill="none" xmlns="http://www.w3.org/2000/svg">
 <rect width="390" height="768" fill="#E2E9DD"/>
@@ -22,28 +23,19 @@ const _mapSvg = '''
 </svg>
 ''';
 
+
 /// 08 Mapa
-class MapScreen extends StatefulWidget {
+class MapScreen extends StatelessWidget {
   const MapScreen({super.key});
 
   @override
-  State<MapScreen> createState() => _MapScreenState();
-}
-
-class _MapScreenState extends State<MapScreen> {
-  bool _within5km = false;
-
-  void _openGame() => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const GameDetailScreen()),
-      );
-
-  @override
   Widget build(BuildContext context) {
+    final jogo = DadosExemplo.jogo;
     return ColoredBox(
       color: AppColors.mapLand,
       child: Stack(
         children: [
-          // Mapa desenhado em 390x768 (área do mockup) e escalado para cobrir o ecrã.
+
           Positioned.fill(
             child: ClipRect(
               child: FittedBox(
@@ -60,7 +52,9 @@ class _MapScreenState extends State<MapScreen> {
                       Positioned(
                         left: 70,
                         top: 404,
-                        child: GestureDetector(onTap: _openGame, child: const _VenueMarker('Padel Club X · 1 vaga')),
+                        child: _VenueMarker(
+                          '${jogo.localNome} · ${jogo.vagas} ${jogo.vagas == 1 ? 'vaga' : 'vagas'}',
+                        ),
                       ),
                       const Positioned(left: 167, top: 322, child: _YouMarker()),
                     ],
@@ -73,19 +67,15 @@ class _MapScreenState extends State<MapScreen> {
             left: 16,
             right: 16,
             top: topInset(context, 52),
-            child: SingleChildScrollView(
+            child: const SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  const PillChip(label: 'Padel', selected: true),
-                  const SizedBox(width: 8),
-                  PillChip(
-                    label: 'Raio 5 km',
-                    selected: _within5km,
-                    onTap: () => setState(() => _within5km = !_within5km),
-                  ),
-                  const SizedBox(width: 8),
-                  const PillChip(label: 'Jogos e jogadores'),
+                  PillChip(label: 'Padel', selected: true),
+                  SizedBox(width: 8),
+                  PillChip(label: 'Raio 5 km'),
+                  SizedBox(width: 8),
+                  PillChip(label: 'Jogos e jogadores'),
                 ],
               ),
             ),
@@ -108,26 +98,34 @@ class _MapScreenState extends State<MapScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Jogo de Padel', style: AppText.display(20)),
+                            Text('Jogo de ${jogo.modalidade}', style: AppText.display(20)),
                             const SizedBox(height: 3),
                             Text(
-                              'Sáb, 3 Out · 10:00 · Padel Club X',
+                              '${dataCurta(jogo.dataHora)} · ${jogo.localNome}',
                               style: AppText.body(14, color: AppColors.muted),
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              'Intermédio · a 2,4 km de ti',
+                              '${jogo.nivel} · a ${km(jogo.distanciaKm!)} de ti',
                               style: AppText.body(14, color: AppColors.muted),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Tag('3 / 4', background: AppColors.lime),
+                      Tag('${jogo.ocupados} / ${jogo.capacidade}', background: AppColors.lime),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  AppButton(label: 'Ver jogo', height: 48, radius: 12, fontSize: 16, onPressed: _openGame),
+                  AppButton(
+                    label: 'Ver jogo',
+                    height: 48,
+                    radius: 12,
+                    fontSize: 16,
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => GameDetailScreen(jogoId: jogo.id)),
+                    ),
+                  ),
                 ],
               ),
             ),

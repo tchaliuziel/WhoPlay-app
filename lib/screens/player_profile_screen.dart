@@ -1,20 +1,48 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock_data.dart';
+import '../data/models.dart';
+import '../services/api.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../utils/formatos.dart';
 import '../widgets/app_icons.dart';
 import '../widgets/buttons.dart';
 import '../widgets/common.dart';
 
 /// 05 Perfil do jogador. Devolve `true` ao fazer pop se o convite foi enviado.
-class PlayerProfileScreen extends StatelessWidget {
-  const PlayerProfileScreen({super.key, required this.player});
+class PlayerProfileScreen extends StatefulWidget {
+  const PlayerProfileScreen({super.key, required this.jogador, required this.modalidadeId});
 
-  final Player player;
+  final Jogador jogador;
+  final int modalidadeId;
+
+  @override
+  State<PlayerProfileScreen> createState() => _PlayerProfileScreenState();
+}
+
+class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
+  bool _aEnviar = false;
+
+  Future<void> _enviarConvite() async {
+    setState(() => _aEnviar = true);
+    try {
+      await Api.enviarConvite(
+        jogadorId: widget.jogador.id,
+        modalidadeId: widget.modalidadeId,
+        dataHora: inicioConvite(widget.jogador.disponivelHoje),
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } on ApiException catch (erro) {
+      if (mounted) showInfo(context, erro.message);
+    } finally {
+      if (mounted) setState(() => _aEnviar = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final jogador = widget.jogador;
+    final avaliacao = jogador.avaliacao;
     return AnnotatedRegion(
       value: AppTheme.darkStatusIcons,
       child: Scaffold(
@@ -34,21 +62,29 @@ class PlayerProfileScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Avatar(player.initial, size: 72, fontSize: 30),
+                  Avatar(jogador.inicial, size: 72, fontSize: 30),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(player.name, style: AppText.display(28, letterSpacing: -0.5)),
+                        Text(jogador.nome, style: AppText.display(28, letterSpacing: -0.5)),
                         const SizedBox(height: 4),
-                        Text(player.summary, style: AppText.body(15, color: AppColors.muted)),
+                        Text(
+                          '${jogador.modalidade} · ${jogador.nivel} · ${km(jogador.distanciaKm)}',
+                          style: AppText.body(15, color: AppColors.muted),
+                        ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
                             const SvgIcon(AppIcon.star, size: 16, strokeWidth: 1.5),
                             const SizedBox(width: 5),
-                            Text('4,7 de avaliação', style: AppText.body(15, weight: FontWeight.w700)),
+                            Text(
+                              avaliacao == null
+                                  ? 'Sem avaliações'
+                                  : '${avaliacao.toString().replaceAll('.', ',')} de avaliação',
+                              style: AppText.body(15, weight: FontWeight.w700),
+                            ),
                           ],
                         ),
                       ],
@@ -57,19 +93,19 @@ class PlayerProfileScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              _CompatibilityCard(total: player.compatibility),
+              _CompatibilityCard(jogador: jogador),
               const SizedBox(height: 16),
               ListCard(
                 children: [
-                  _InfoRow('Disponível hoje', player.availability.replaceFirst('Disponível hoje ', '')),
-                  const _InfoRow('Objetivo', 'Procura parceiro para jogo'),
+                  _InfoRow('Disponível hoje', jogador.disponivelHoje ?? '—'),
+                  _InfoRow('Objetivo', jogador.objetivo),
                 ],
               ),
               const SizedBox(height: 16),
               const Spacer(),
               AppButton(
-                label: 'Enviar convite',
-                onPressed: () => Navigator.of(context).pop(true),
+                label: _aEnviar ? 'A enviar…' : 'Enviar convite',
+                onPressed: _aEnviar ? null : _enviarConvite,
               ),
             ],
           ),
@@ -80,9 +116,9 @@ class PlayerProfileScreen extends StatelessWidget {
 }
 
 class _CompatibilityCard extends StatelessWidget {
-  const _CompatibilityCard({required this.total});
+  const _CompatibilityCard({required this.jogador});
 
-  final int total;
+  final Jogador jogador;
 
   @override
   Widget build(BuildContext context) {
@@ -102,25 +138,29 @@ class _CompatibilityCard extends StatelessWidget {
                 style: AppText.body(15, weight: FontWeight.w600, color: AppColors.white),
               ),
               Text(
-                '$total%',
+                '${jogador.compatibilidade}%',
                 style: AppText.display(44, weight: FontWeight.w800, color: AppColors.lime, height: 1),
               ),
             ],
           ),
-          for (final (label, score, max) in compatibilityBreakdown) ...[
+          for (final criterio in jogador.criterios) ...[
             const SizedBox(height: 14),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(label, style: AppText.body(14, color: AppColors.white)),
+                Text(criterio.nome, style: AppText.body(14, color: AppColors.white)),
                 Text(
-                  '$score / $max',
+                  '${criterio.pontos} / ${criterio.maximo}',
                   style: AppText.body(14, weight: FontWeight.w700, color: AppColors.white),
                 ),
               ],
             ),
             const SizedBox(height: 6),
-            ThinBar(value: score / max, color: AppColors.lime, track: AppColors.forestLight),
+            ThinBar(
+              value: criterio.pontos / criterio.maximo,
+              color: AppColors.lime,
+              track: AppColors.forestLight,
+            ),
           ],
         ],
       ),

@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock_data.dart';
+import '../data/models.dart';
+import '../services/api.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../utils/formatos.dart';
 import '../widgets/app_icons.dart';
 import '../widgets/buttons.dart';
 import '../widgets/common.dart';
 import '../widgets/fields.dart';
 import 'game_detail_screen.dart';
+
+const _levels = ['Iniciante', 'Intermédio', 'Avançado'];
+const _formats = ['Amigável', 'Competitivo'];
 
 /// 07 Criar jogo
 class CreateGameScreen extends StatefulWidget {
@@ -18,46 +23,44 @@ class CreateGameScreen extends StatefulWidget {
 }
 
 class _CreateGameScreenState extends State<CreateGameScreen> {
-  static const _weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-  static const _months = [
-    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
-  ];
   static const _capacity = 4;
 
-  String _sport = 'Padel';
-  DateTime _date = DateTime(2026, 10, 3);
+  final Future<List<Modalidade>> _modalidades = Api.modalidades();
+  int _modalidadeId = 1;
+  DateTime _date = DateUtils.dateOnly(DateTime.now()).add(const Duration(days: 1));
   TimeOfDay _time = const TimeOfDay(hour: 10, minute: 0);
   String _level = 'Intermédio';
   String _format = 'Amigável';
   int _openSlots = 1;
+  bool _aCriar = false;
 
-  late final _dateCtrl = TextEditingController(text: _formatDate(_date));
+  late final _dateCtrl = TextEditingController(text: dataCampo(_date));
   late final _timeCtrl = TextEditingController(text: _formatTime(_time));
+  final _localCtrl = TextEditingController(text: 'Padel Club X');
+  final _precoCtrl = TextEditingController(text: '8 €');
 
   @override
   void dispose() {
     _dateCtrl.dispose();
     _timeCtrl.dispose();
+    _localCtrl.dispose();
+    _precoCtrl.dispose();
     super.dispose();
   }
 
-  String _formatDate(DateTime d) => '${_weekdays[d.weekday - 1]}, ${d.day} de ${_months[d.month - 1]}';
-
-  String _formatTime(TimeOfDay t) =>
-      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  String _formatTime(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,
-      firstDate: DateTime(2020),
+      firstDate: DateUtils.dateOnly(DateTime.now()),
       lastDate: DateTime(2100),
     );
     if (picked == null) return;
     setState(() {
       _date = picked;
-      _dateCtrl.text = _formatDate(picked);
+      _dateCtrl.text = dataCampo(picked);
     });
   }
 
@@ -68,6 +71,30 @@ class _CreateGameScreenState extends State<CreateGameScreen> {
       _time = picked;
       _timeCtrl.text = _formatTime(picked);
     });
+  }
+
+  Future<void> _criar() async {
+    // "8 €" → 8.0 · "7,50" → 7.5
+    final preco = double.tryParse(_precoCtrl.text.replaceAll(RegExp(r'[^0-9,.]'), '').replaceAll(',', '.')) ?? 0;
+    setState(() => _aCriar = true);
+    try {
+      final id = await Api.criarJogo(
+        modalidadeId: _modalidadeId,
+        dataHora: DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute),
+        local: _localCtrl.text.trim(),
+        nivel: _level,
+        formato: _format,
+        capacidade: _capacity,
+        vagasAbertas: _openSlots,
+        preco: preco,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => GameDetailScreen(jogoId: id)));
+    } on ApiException catch (erro) {
+      if (mounted) showInfo(context, erro.message);
+    } finally {
+      if (mounted) setState(() => _aCriar = false);
+    }
   }
 
   @override
@@ -92,11 +119,17 @@ class _CreateGameScreenState extends State<CreateGameScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              AppDropdown<String>(
-                label: 'Desporto',
-                value: _sport,
-                items: {for (final s in sports) s.name: s.name},
-                onChanged: (v) => setState(() => _sport = v ?? _sport),
+              FutureBuilder<List<Modalidade>>(
+                future: _modalidades,
+                builder: (context, snapshot) {
+                  final lista = snapshot.data ?? const [Modalidade(id: 1, nome: 'Padel', descricao: '')];
+                  return AppDropdown<int>(
+                    label: 'Desporto',
+                    value: _modalidadeId,
+                    items: {for (final m in lista) m.id: m.nome},
+                    onChanged: (v) => setState(() => _modalidadeId = v ?? _modalidadeId),
+                  );
+                },
               ),
               const SizedBox(height: 16),
               Row(
@@ -125,18 +158,18 @@ class _CreateGameScreenState extends State<CreateGameScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              const AppTextField(label: 'Local', initialValue: 'Padel Club X', weight: FontWeight.w600),
+              AppTextField(label: 'Local', controller: _localCtrl, weight: FontWeight.w600),
               const SizedBox(height: 16),
               _ChoiceGroup(
                 label: 'Nível',
-                options: levels,
+                options: _levels,
                 selected: _level,
                 onSelected: (v) => setState(() => _level = v),
               ),
               const SizedBox(height: 16),
               _ChoiceGroup(
                 label: 'Formato',
-                options: formats,
+                options: _formats,
                 selected: _format,
                 onSelected: (v) => setState(() => _format = v),
               ),
@@ -170,24 +203,20 @@ class _CreateGameScreenState extends State<CreateGameScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     flex: 2,
                     child: AppTextField(
                       label: 'Preço por pessoa',
-                      initialValue: '8 €',
+                      controller: _precoCtrl,
                       weight: FontWeight.w600,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
               const Spacer(),
-              AppButton(
-                label: 'Criar jogo',
-                onPressed: () => Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const GameDetailScreen()),
-                ),
-              ),
+              AppButton(label: _aCriar ? 'A criar…' : 'Criar jogo', onPressed: _aCriar ? null : _criar),
             ],
           ),
         ),

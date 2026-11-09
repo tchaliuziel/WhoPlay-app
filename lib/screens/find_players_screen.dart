@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock_data.dart';
+import '../data/models.dart';
+import '../services/api.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../utils/formatos.dart';
 import '../widgets/app_icons.dart';
 import '../widgets/buttons.dart';
 import '../widgets/common.dart';
@@ -19,15 +21,22 @@ class FindPlayersScreen extends StatefulWidget {
 }
 
 class _FindPlayersScreenState extends State<FindPlayersScreen> {
-  String _sport = 'Padel';
-  bool _within5km = false;
-  bool _today = false;
+  static const _modalidadeId = 1;
+  static const _raioKm = 5;
 
-  Future<void> _openProfile(Player player) async {
-    final invited = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => PlayerProfileScreen(player: player)),
+  late Future<List<Jogador>> _jogadoresFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarJogadores();
+  }
+
+  void _carregarJogadores() {
+    _jogadoresFuture = Api.jogadores(
+      modalidadeId: _modalidadeId,
+      raioKm: _raioKm,
     );
-    if (invited == true) widget.onInviteSent?.call();
   }
 
   @override
@@ -39,39 +48,97 @@ class _FindPlayersScreenState extends State<FindPlayersScreen> {
         children: [
           const ScreenTitle('Encontrar jogadores'),
           const SizedBox(height: 14),
-          SingleChildScrollView(
+          const SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             clipBehavior: Clip.none,
             child: Row(
               children: [
-                for (final s in ['Padel', 'Ténis']) ...[
-                  PillChip(label: s, selected: _sport == s, onTap: () => setState(() => _sport = s)),
-                  const SizedBox(width: 8),
-                ],
-                PillChip(
-                  label: 'Até 5 km',
-                  selected: _within5km,
-                  onTap: () => setState(() => _within5km = !_within5km),
-                ),
-                const SizedBox(width: 8),
-                PillChip(label: 'Hoje', selected: _today, onTap: () => setState(() => _today = !_today)),
+                PillChip(label: 'Padel', selected: true),
+                SizedBox(width: 8),
+                PillChip(label: 'Ténis'),
+                SizedBox(width: 8),
+                PillChip(label: 'Até 5 km'),
+                SizedBox(width: 8),
+                PillChip(label: 'Hoje'),
               ],
             ),
           ),
           const SizedBox(height: 14),
-          Text(
-            '${nearbyPlayers.length} jogadores compatíveis perto de ti',
-            style: AppText.body(14, color: AppColors.muted),
+          FutureBuilder<List<Jogador>>(
+            future: _jogadoresFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              if (snapshot.hasError) {
+                final mensagem = snapshot.error is ApiException
+                    ? (snapshot.error as ApiException).message
+                    : 'Não foi possível carregar os jogadores.';
+
+                return Column(
+                  children: [
+                    Text(
+                      mensagem,
+                      textAlign: TextAlign.center,
+                      style: AppText.body(14, color: AppColors.muted),
+                    ),
+                    const SizedBox(height: 12),
+                    AppButton.small(
+                      label: 'Tentar novamente',
+                      onPressed: () {
+                        setState(_carregarJogadores);
+                      },
+                    ),
+                  ],
+                );
+              }
+
+              final jogadores = snapshot.data ?? const <Jogador>[];
+
+              if (jogadores.isEmpty) {
+                return Column(
+                  children: [
+                    Text(
+                      'Ainda não encontrámos jogadores compatíveis nesta modalidade e raio.',
+                      textAlign: TextAlign.center,
+                      style: AppText.body(14, color: AppColors.muted),
+                    ),
+                    const SizedBox(height: 12),
+                    AppButton.small(
+                      label: 'Atualizar pesquisa',
+                      outlined: true,
+                      onPressed: () {
+                        setState(_carregarJogadores);
+                      },
+                    ),
+                  ],
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '${jogadores.length} jogadores compatíveis perto de ti',
+                    style: AppText.body(14, color: AppColors.muted),
+                  ),
+                  const SizedBox(height: 14),
+                  for (var i = 0; i < jogadores.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 12),
+                    PlayerCard(
+                      jogador: jogadores[i],
+                      modalidadeId: _modalidadeId,
+                      onInviteSent: widget.onInviteSent,
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 14),
-          for (var i = 0; i < nearbyPlayers.length; i++) ...[
-            if (i > 0) const SizedBox(height: 12),
-            PlayerCard(
-              player: nearbyPlayers[i],
-              onViewProfile: () => _openProfile(nearbyPlayers[i]),
-              onInvite: () => showInfo(context, 'Convite enviado a ${nearbyPlayers[i].name}.'),
-            ),
-          ],
         ],
       ),
     );
@@ -79,15 +146,60 @@ class _FindPlayersScreenState extends State<FindPlayersScreen> {
 }
 
 class PlayerCard extends StatelessWidget {
-  const PlayerCard({super.key, required this.player, this.onViewProfile, this.onInvite});
+  const PlayerCard({
+    super.key,
+    required this.jogador,
+    required this.modalidadeId,
+    this.onInviteSent,
+  });
 
-  final Player player;
-  final VoidCallback? onViewProfile;
-  final VoidCallback? onInvite;
+  final Jogador jogador;
+  final int modalidadeId;
+  final VoidCallback? onInviteSent;
+
+  Future<void> _verPerfil(BuildContext context) async {
+    final enviado = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PlayerProfileScreen(
+          jogador: jogador,
+          modalidadeId: modalidadeId,
+        ),
+      ),
+    );
+
+    if (enviado == true && context.mounted) {
+      showInfo(context, 'Convite enviado a ${jogador.nome}.');
+      onInviteSent?.call();
+    }
+  }
+
+  Future<void> _convidar(BuildContext context) async {
+    try {
+      await Api.enviarConvite(
+        jogadorId: jogador.id,
+        modalidadeId: modalidadeId,
+        dataHora: inicioConvite(jogador.disponivelHoje),
+      );
+
+      if (!context.mounted) return;
+
+      showInfo(context, 'Convite enviado a ${jogador.nome}.');
+      onInviteSent?.call();
+    } on ApiException catch (erro) {
+      if (context.mounted) {
+        showInfo(context, erro.message);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final availabilityColor = player.availableHighlight ? AppColors.primary : AppColors.muted;
+    final destaque = jogador.compatibilidade >= 80;
+    final hoje = jogador.disponivelHoje;
+
+    final availabilityColor =
+        destaque && hoje != null ? AppColors.primary : AppColors.muted;
+
     return SurfaceCard(
       radius: 18,
       padding: const EdgeInsets.all(14),
@@ -96,48 +208,73 @@ class PlayerCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Avatar(player.initial),
+              Avatar(jogador.inicial),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(player.name, style: AppText.body(17, weight: FontWeight.w700)),
+                    Text(
+                      jogador.nome,
+                      style: AppText.body(17, weight: FontWeight.w700),
+                    ),
                     const SizedBox(height: 2),
-                    Text(player.summary, style: AppText.body(14, color: AppColors.muted)),
+                    Text(
+                      '${jogador.modalidade} · ${jogador.nivel} · ${km(jogador.distanciaKm)}',
+                      style: AppText.body(14, color: AppColors.muted),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
               Tag(
-                '${player.compatibility}%',
+                '${jogador.compatibilidade}%',
                 display: true,
                 fontSize: 18,
-                background: player.compatibility >= 80 ? AppColors.lime : AppColors.chip,
+                background: destaque ? AppColors.lime : AppColors.chip,
               ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              SvgIcon(AppIcon.clock, size: 16, color: availabilityColor),
+              SvgIcon(
+                AppIcon.clock,
+                size: 16,
+                color: availabilityColor,
+              ),
               const SizedBox(width: 6),
               Text(
-                player.availability,
-                style: AppText.body(14, weight: FontWeight.w600, color: availabilityColor),
+                hoje != null
+                    ? 'Disponível hoje $hoje'
+                    : 'Sem disponibilidade hoje',
+                style: AppText.body(
+                  14,
+                  weight: FontWeight.w600,
+                  color: availabilityColor,
+                ),
               ),
             ],
           ),
-          if (player.showActions) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: AppButton.small(label: 'Ver perfil', outlined: true, onPressed: onViewProfile)),
-                const SizedBox(width: 8),
-                Expanded(child: AppButton.small(label: 'Convidar', onPressed: onInvite)),
-              ],
-            ),
-          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: AppButton.small(
+                  label: 'Ver perfil',
+                  outlined: true,
+                  onPressed: () => _verPerfil(context),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: AppButton.small(
+                  label: 'Convidar',
+                  onPressed: () => _convidar(context),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

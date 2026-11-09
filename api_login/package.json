@@ -1,0 +1,21 @@
+{
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "mysql2": "^3.24.6"
+  },
+  "name": "whoplay-api-login",
+  "version": "1.0.0",
+  "description": "API do login do WhoPlay (Node.js + Express + MySQL do XAMPP)",
+  "main": "server.js",
+  "devDependencies": {},
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

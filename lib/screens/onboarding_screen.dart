@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock_data.dart';
+import '../data/models.dart';
+import '../services/api.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_icons.dart';
+import '../widgets/async_view.dart';
 import '../widgets/buttons.dart';
 import '../widgets/common.dart';
 import 'home_shell.dart';
@@ -17,11 +19,31 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  final _selected = <String>{'Padel', 'Ténis'};
+  late Future<List<Modalidade>> _modalidades = Api.modalidades();
+  final _selected = <int>{};
+  bool _aGuardar = false;
 
-  void _toggle(String sport) => setState(() {
-        if (!_selected.remove(sport)) _selected.add(sport);
+  void _toggle(int id) => setState(() {
+        if (!_selected.remove(id)) _selected.add(id);
       });
+
+  Future<void> _continuar() async {
+    setState(() => _aGuardar = true);
+    try {
+      await Api.atualizarModalidades(_selected.toList());
+      // Localização provisória (centro de Lisboa) até haver GPS (pacote geolocator).
+      await Api.atualizarPerfil({'localidade': 'Lisboa', 'latitude': 38.7223, 'longitude': -9.1393});
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeShell(initialTab: HomeShell.profileTab)),
+        (_) => false,
+      );
+    } on ApiException catch (erro) {
+      if (mounted) showInfo(context, erro.message);
+    } finally {
+      if (mounted) setState(() => _aGuardar = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,16 +70,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 style: AppText.body(16, color: AppColors.muted, height: 1.45),
               ),
               const SizedBox(height: 24),
-              for (var i = 0; i < sports.length; i += 2) ...[
-                if (i > 0) const SizedBox(height: 12),
-                Row(
+              AsyncView<List<Modalidade>>(
+                future: _modalidades,
+                onRetry: () => setState(() => _modalidades = Api.modalidades()),
+                builder: (context, modalidades) => Column(
                   children: [
-                    Expanded(child: _tile(sports[i])),
-                    const SizedBox(width: 12),
-                    Expanded(child: i + 1 < sports.length ? _tile(sports[i + 1]) : const SizedBox()),
+                    for (var i = 0; i < modalidades.length; i += 2) ...[
+                      if (i > 0) const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(child: _tile(modalidades[i])),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: i + 1 < modalidades.length ? _tile(modalidades[i + 1]) : const SizedBox(),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
-              ],
+              ),
               const SizedBox(height: 24),
               const Spacer(),
               Text(
@@ -67,13 +99,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const SizedBox(height: 10),
               AppButton(
-                label: 'Continuar',
-                onPressed: count == 0
-                    ? null
-                    : () => Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const HomeShell(initialTab: HomeShell.profileTab)),
-                          (_) => false,
-                        ),
+                label: _aGuardar ? 'A guardar…' : 'Continuar',
+                onPressed: count == 0 || _aGuardar ? null : _continuar,
               ),
             ],
           ),
@@ -82,10 +109,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _tile(Sport sport) => _SportTile(
-        sport: sport,
-        selected: _selected.contains(sport.name),
-        onTap: () => _toggle(sport.name),
+  Widget _tile(Modalidade modalidade) => _SportTile(
+        modalidade: modalidade,
+        selected: _selected.contains(modalidade.id),
+        onTap: () => _toggle(modalidade.id),
       );
 }
 
@@ -128,9 +155,9 @@ class _StepProgress extends StatelessWidget {
 }
 
 class _SportTile extends StatelessWidget {
-  const _SportTile({required this.sport, required this.selected, required this.onTap});
+  const _SportTile({required this.modalidade, required this.selected, required this.onTap});
 
-  final Sport sport;
+  final Modalidade modalidade;
   final bool selected;
   final VoidCallback onTap;
 
@@ -161,7 +188,7 @@ class _SportTile extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        sport.name,
+                        modalidade.nome,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.display(19),
                       ),
@@ -171,7 +198,7 @@ class _SportTile extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  sport.subtitle,
+                  modalidade.descricao,
                   style: AppText.body(
                     13,
                     weight: FontWeight.w500,
