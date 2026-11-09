@@ -5,7 +5,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import 'app_icons.dart';
 
-/// Navegação principal: Jogadores, Mapa, Criar jogo, Jogos, Convites e Perfil.
+/// Navegação principal do WhoPlay: cinco posições.
 class AppBottomNav extends StatelessWidget {
   const AppBottomNav({
     super.key,
@@ -19,11 +19,10 @@ class AppBottomNav extends StatelessWidget {
   final ValueChanged<int> onTap;
 
   static const _items = <(AppIcon, String)?>[
-    (AppIcon.users, 'Jogadores'),
-    (AppIcon.pin, 'Mapa'),
-    null,
+    (AppIcon.users, 'Explorar'),
     (AppIcon.calendar, 'Jogos'),
-    (AppIcon.bell, 'Convites'),
+    null,
+    (AppIcon.bell, 'Inbox'),
     (AppIcon.user, 'Perfil'),
   ];
 
@@ -40,7 +39,7 @@ class AppBottomNav extends StatelessWidget {
         ),
       ),
       child: SizedBox(
-        height: 76,
+        height: 68,
         child: Row(
           children: [
             for (var i = 0; i < _items.length; i++)
@@ -63,8 +62,8 @@ class AppBottomNav extends StatelessWidget {
           radius: 32,
           child: Center(
             child: Container(
-              width: 48,
-              height: 48,
+              width: 46,
+              height: 46,
               decoration: const BoxDecoration(
                 color: AppColors.primary,
                 shape: BoxShape.circle,
@@ -87,7 +86,7 @@ class AppBottomNav extends StatelessWidget {
 
     return InkResponse(
       onTap: () => onTap(index),
-      radius: 36,
+      radius: 30,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -97,9 +96,11 @@ class AppBottomNav extends StatelessWidget {
             color: color,
             strokeWidth: active ? 2.2 : 1.8,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             item.$2,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: AppText.body(
               10,
               weight: active ? FontWeight.w700 : FontWeight.w600,

@@ -357,7 +357,9 @@ abstract final class Api {
   }
 
   /// GET /jogos/historico.
-  /// Filtros: todos, organizados ou participados.
+  /// O backend aceita o parâmetro `tipo`: organizados ou participados.
+  /// Quando o filtro é `todos`, não envia o parâmetro.
+  /// A resposta da API é um objeto com `total` e `jogos`.
   static Future<List<dynamic>> historicoJogos({
     String filtro = 'todos',
   }) async {
@@ -365,16 +367,25 @@ abstract final class Api {
       throw const ApiException('Inicia sessão para consultar o histórico.');
     }
 
-    final query = Uri(
-      queryParameters: {'filtro': filtro},
-    ).query;
+    if (!['todos', 'organizados', 'participados'].contains(filtro)) {
+      throw const ApiException('Filtro de histórico inválido.');
+    }
+
+    final parametros = <String, String>{
+      if (filtro != 'todos') 'tipo': filtro,
+    };
+
+    final query = parametros.isEmpty
+        ? ''
+        : '?${Uri(queryParameters: parametros).query}';
 
     final dados = await _pedido(
       'GET',
-      '/jogos/historico?$query',
-    ) as List;
+      '/jogos/historico$query',
+    ) as Map<String, dynamic>;
 
-    return dados;
+    final jogos = dados['jogos'] as List? ?? const [];
+    return jogos;
   }
 
   /// GET /jogos/estatisticas.
@@ -537,7 +548,7 @@ abstract final class Api {
       modalidade: json['modalidade'] as String,
       jogadorId: (json['jogador_id'] as num).toInt(),
       nome: json['nome'] as String,
-      distanciaKm: (json['distancia_km'] as num?)?.toDouble() ?? 0.0,
+      distanciaKm: (json['distancia_km'] as num?)?.toDouble(),
     );
   }
 

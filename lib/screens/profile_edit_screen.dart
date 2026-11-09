@@ -61,7 +61,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       text: widget.perfil.objetivo,
     );
 
-    _raioKm = widget.perfil.raioKm.clamp(1, 100);
+    _raioKm = widget.perfil.raioKm.clamp(1, 100).toInt();
 
     for (final modalidade in widget.perfil.modalidades) {
       _modalidadesSelecionadas[modalidade.id] = modalidade.nivel;
@@ -411,15 +411,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                         modalidade.id,
                       ))
                         DropdownButtonFormField<String>(
-                          value: _modalidadesSelecionadas[
-                            modalidade.id
-                          ],
+                          initialValue:
+                              _modalidadesSelecionadas[modalidade.id],
                           decoration: const InputDecoration(
                             labelText: 'Nível de experiência',
                             border: OutlineInputBorder(),
                           ),
                           items: _niveis.map((nivel) {
-                            return DropdownMenuItem(
+                            return DropdownMenuItem<String>(
                               value: nivel,
                               child: Text(nivel),
                             );
@@ -428,9 +427,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                             if (nivel == null) return;
 
                             setState(() {
-                              _modalidadesSelecionadas[
-                                modalidade.id
-                              ] = nivel;
+                              _modalidadesSelecionadas[modalidade.id] = nivel;
                             });
                           },
                         ),
