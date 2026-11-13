@@ -229,7 +229,7 @@ class _GameDetailBody extends StatelessWidget {
                     const SizedBox(height: 10),
                     OutlinedButton.icon(
                       onPressed: onScanCheckIn,
-                      icon: const Icon(Icons.qr_code_scanner),
+                      icon: const SvgIcon(AppIcon.scan, size: 20, color: AppColors.forest),
                       label: const Text('Validar QR Code dos participantes'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.forest,

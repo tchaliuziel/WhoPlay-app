@@ -5,6 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/api.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_icons.dart';
 import '../widgets/buttons.dart';
 
 class ScanCheckInScreen extends StatefulWidget {
@@ -200,10 +201,11 @@ class _ScanCheckInScreenState extends State<ScanCheckInScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            _sucesso ? Icons.check_circle : Icons.error,
+          SvgIcon(
+            _sucesso ? AppIcon.checkCircle : AppIcon.alert,
             color: _sucesso ? AppColors.lime : Colors.redAccent,
             size: 76,
+            strokeWidth: 1.6,
           ),
           const SizedBox(height: 18),
           Text(

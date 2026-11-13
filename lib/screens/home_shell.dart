@@ -6,7 +6,6 @@ import '../widgets/bottom_nav.dart';
 import 'create_game_screen.dart';
 import 'find_players_screen.dart';
 import 'games_screen.dart';
-import 'history_screen.dart';
 import 'invites_screen.dart';
 import 'map_screen.dart';
 import 'profile_screen.dart';
@@ -99,17 +98,8 @@ class _HomeShellState extends State<HomeShell> {
                 const MapScreen(),
               ],
             ),
-            _SectionTabs(
-              key: ValueKey(_gamesVersion),
-              tabs: const ['Disponíveis', 'Histórico'],
-              children: [
-                GamesScreen(
-                  key: ValueKey('games_$_gamesVersion'),
-                ),
-                HistoryScreen(
-                  key: ValueKey('history_$_gamesVersion'),
-                ),
-              ],
+            GamesScreen(
+              key: ValueKey('games_$_gamesVersion'),
             ),
             InvitesScreen(
               key: ValueKey(_inboxVersion),

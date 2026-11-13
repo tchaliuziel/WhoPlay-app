@@ -5,6 +5,7 @@ import '../services/api.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatos.dart';
+import '../widgets/app_icons.dart';
 import '../widgets/async_view.dart';
 import '../widgets/common.dart';
 
@@ -176,17 +177,17 @@ class _HistoryCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _HistoryInfo(
-            icon: Icons.calendar_today_outlined,
+            icon: AppIcon.calendar,
             text: diaHora(data),
           ),
           const SizedBox(height: 8),
           _HistoryInfo(
-            icon: Icons.location_on_outlined,
+            icon: AppIcon.pin,
             text: jogo['local_nome']?.toString() ?? 'Local não indicado',
           ),
           const SizedBox(height: 8),
           _HistoryInfo(
-            icon: Icons.person_outline,
+            icon: AppIcon.user,
             text: papel == 'organizador'
                 ? 'Organizaste este jogo'
                 : 'Participaste neste jogo',
@@ -217,14 +218,14 @@ class _HistoryInfo extends StatelessWidget {
     required this.text,
   });
 
-  final IconData icon;
+  final AppIcon icon;
   final String text;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 17, color: AppColors.muted),
+        SvgIcon(icon, size: 17, color: AppColors.muted),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
