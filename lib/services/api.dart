@@ -129,6 +129,10 @@ abstract final class Api {
             horaFim: item['hora_fim'] as String,
           ),
       ],
+      latitude: (json['latitude'] as num?)?.toDouble() ??
+          double.tryParse(json['latitude']?.toString() ?? ''),
+      longitude: (json['longitude'] as num?)?.toDouble() ??
+          double.tryParse(json['longitude']?.toString() ?? ''),
     );
   }
 
@@ -445,6 +449,8 @@ abstract final class Api {
     required int capacidade,
     required int vagasAbertas,
     required double preco,
+    double? latitude,
+    double? longitude,
   }) async {
     if (!autenticado) {
       throw const ApiException('Inicia sessão para criar um jogo.');
@@ -474,6 +480,8 @@ abstract final class Api {
         'capacidade': capacidade,
         'vagas_abertas': vagasAbertas,
         'preco': preco,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
       },
     ) as Map<String, dynamic>;
 

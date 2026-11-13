@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../services/api.dart';
+import '../services/localizacao.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatos.dart';
@@ -34,6 +35,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final Map<int, bool> _diasSelecionados = {};
   final Map<int, TimeOfDay> _horasInicio = {};
   final Map<int, TimeOfDay> _horasFim = {};
+
+  /// Coordenadas escolhidas com "Usar a minha localização".
+  Local? _posicao;
+  bool _aLocalizar = false;
 
   bool _aCarregar = true;
   bool _aGuardar = false;
@@ -116,6 +121,26 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     setState(() => (inicio ? _horasInicio : _horasFim)[dia] = escolhida);
   }
 
+  Future<void> _usarLocalizacao() async {
+    setState(() => _aLocalizar = true);
+    try {
+      final posicao = await Localizacao.posicaoAtual();
+      final nome = await Localizacao.nomeDoSitio(posicao.latitude, posicao.longitude);
+      if (!mounted) return;
+      setState(() {
+        _posicao = posicao;
+        if (nome != null) _localidade.text = nome;
+      });
+      showInfo(context, nome == null ? 'Localização obtida.' : 'Estás em $nome.');
+    } on ApiException catch (erro) {
+      if (mounted) showInfo(context, erro.message);
+    } catch (_) {
+      if (mounted) showInfo(context, 'Não foi possível obter a localização.');
+    } finally {
+      if (mounted) setState(() => _aLocalizar = false);
+    }
+  }
+
   void _alternarModalidade(int id) => setState(() {
         if (_modalidadesSelecionadas.remove(id) == null) {
           _modalidadesSelecionadas[id] = 'Iniciante';
@@ -150,9 +175,18 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
     setState(() => _aGuardar = true);
     try {
+      // Sem GPS mas com a localidade mudada à mão → procurar as coordenadas.
+      final localidade = _localidade.text.trim();
+      var posicao = _posicao;
+      if (posicao == null && localidade.isNotEmpty && localidade != (widget.perfil.localidade ?? '')) {
+        posicao = await Localizacao.procurar(localidade);
+      }
+
       await Api.atualizarPerfil({
         'nome': _nome.text.trim(),
-        'localidade': _localidade.text.trim().isEmpty ? null : _localidade.text.trim(),
+        'localidade': localidade.isEmpty ? null : localidade,
+        if (posicao != null) 'latitude': double.parse(posicao.latitude.toStringAsFixed(6)),
+        if (posicao != null) 'longitude': double.parse(posicao.longitude.toStringAsFixed(6)),
         'raio_km': _raioKm,
         'objetivo': _objetivo,
       });
@@ -234,6 +268,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             ),
             const SizedBox(height: 16),
             AppTextField(label: 'Localidade', controller: _localidade, weight: FontWeight.w600),
+            const SizedBox(height: 10),
+            AppButton.small(
+              label: _aLocalizar
+                  ? 'A obter localização…'
+                  : (_posicao == null ? 'Usar a minha localização atual' : 'Localização atualizada ✓'),
+              outlined: true,
+              onPressed: _aLocalizar ? null : _usarLocalizacao,
+            ),
           ],
         ),
       ),

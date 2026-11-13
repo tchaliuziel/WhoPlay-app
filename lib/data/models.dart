@@ -78,6 +78,8 @@ class Perfil {
     required this.avaliacao,
     required this.modalidades,
     required this.disponibilidade,
+    this.latitude,
+    this.longitude,
   });
 
   factory Perfil.fromJson(Map<String, dynamic> json) => Perfil(
@@ -96,6 +98,8 @@ class Perfil {
           for (final item in json['disponibilidade'] as List? ?? const [])
             Disponibilidade.fromJson(Map<String, dynamic>.from(item as Map)),
         ],
+        latitude: _duplo(json['latitude']),
+        longitude: _duplo(json['longitude']),
       );
 
   final int id;
@@ -107,6 +111,10 @@ class Perfil {
   final double? avaliacao;
   final List<ModalidadeNivel> modalidades;
   final List<Disponibilidade> disponibilidade;
+
+  /// Posição guardada no perfil (null enquanto não for definida).
+  final double? latitude;
+  final double? longitude;
 }
 
 class Criterio {
@@ -135,6 +143,8 @@ class Jogador {
     required this.avaliacao,
     required this.objetivo,
     required this.disponivelHoje,
+    this.latitude,
+    this.longitude,
   });
 
   factory Jogador.fromJson(Map<String, dynamic> json) => Jogador(
@@ -151,6 +161,8 @@ class Jogador {
         avaliacao: _duplo(json['avaliacao']),
         objetivo: json['objetivo'] as String? ?? '',
         disponivelHoje: json['disponivel_hoje'] as String?,
+        latitude: _duplo(json['latitude']),
+        longitude: _duplo(json['longitude']),
       );
 
   final int id;
@@ -163,6 +175,8 @@ class Jogador {
   final double? avaliacao;
   final String objetivo;
   final String? disponivelHoje;
+  final double? latitude;
+  final double? longitude;
 
   String get inicial => nome.isNotEmpty ? nome.substring(0, 1) : '?';
 }
@@ -205,6 +219,8 @@ class Jogo {
     required this.distanciaKm,
     this.participantes = const [],
     this.euParticipo = false,
+    this.latitude,
+    this.longitude,
   });
 
   factory Jogo.fromJson(Map<String, dynamic> json) => Jogo(
@@ -226,6 +242,8 @@ class Jogo {
             Participante.fromJson(Map<String, dynamic>.from(item as Map)),
         ],
         euParticipo: _booleano(json['eu_participo']),
+        latitude: _duplo(json['latitude']),
+        longitude: _duplo(json['longitude']),
       );
 
   final int id;
@@ -243,6 +261,8 @@ class Jogo {
   final double? distanciaKm;
   final List<Participante> participantes;
   final bool euParticipo;
+  final double? latitude;
+  final double? longitude;
 }
 
 class Convite {

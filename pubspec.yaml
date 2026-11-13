@@ -16,6 +16,9 @@ dependencies:
   http: ^1.2.2
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.5.0
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  geolocator: ^14.1.2
 
 dev_dependencies:
   flutter_test:

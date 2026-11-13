@@ -65,6 +65,8 @@ async function avaliarJogadores(meuId, modalidadeId, raioPedido, apenasId = null
       modalidade: outro.modalidade,
       nivel: outro.nivel,
       distancia_km: Math.round(distancia * 10) / 10,
+      latitude: Number(outro.latitude),
+      longitude: Number(outro.longitude),
       compatibilidade: total,
       criterios,
       avaliacao: outro.avaliacao,

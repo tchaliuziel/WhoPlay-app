@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../services/api.dart';
+import '../services/localizacao.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_icons.dart';
@@ -31,8 +32,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     setState(() => _aGuardar = true);
     try {
       await Api.atualizarModalidades(_selected.toList());
-      // Localização provisória (centro de Lisboa) até haver GPS (pacote geolocator).
-      await Api.atualizarPerfil({'localidade': 'Lisboa', 'latitude': 38.7223, 'longitude': -9.1393});
+      // Localização real (GPS + nome do sítio). Se o utilizador recusar ou
+      // não houver GPS, fica o centro de Lisboa e pode mudar depois no perfil.
+      try {
+        await Localizacao.atualizarPerfil();
+      } catch (_) {
+        const l = Localizacao.lisboa;
+        await Api.atualizarPerfil({'localidade': l.nome, 'latitude': l.latitude, 'longitude': l.longitude});
+      }
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeShell(initialTab: HomeShell.profileTab)),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../services/api.dart';
+import '../services/localizacao.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatos.dart';
@@ -78,6 +79,13 @@ class _CreateGameScreenState extends State<CreateGameScreen> {
     final preco = double.tryParse(_precoCtrl.text.replaceAll(RegExp(r'[^0-9,.]'), '').replaceAll(',', '.')) ?? 0;
     setState(() => _aCriar = true);
     try {
+      // Converte o texto do "Local" em coordenadas (Nominatim), procurando
+      // primeiro perto de ti. Se não encontrar, a API usa a tua posição.
+      final eu = await Api.perfil();
+      final sitio = await Localizacao.procurar(
+        _localCtrl.text,
+        perto: eu.latitude == null ? null : Local(eu.latitude!, eu.longitude!),
+      );
       final id = await Api.criarJogo(
         modalidadeId: _modalidadeId,
         dataHora: DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute),
@@ -87,6 +95,8 @@ class _CreateGameScreenState extends State<CreateGameScreen> {
         capacidade: _capacity,
         vagasAbertas: _openSlots,
         preco: preco,
+        latitude: sitio?.latitude,
+        longitude: sitio?.longitude,
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => GameDetailScreen(jogoId: id)));
